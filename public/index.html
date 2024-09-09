@@ -132,23 +132,37 @@
 
                 // Log the JSON data (can be stored in a file or sent to a server)
                 console.log(JSON.stringify(jsonData));
-                console.log(data.ip);
 
-                // Save the JSON data to a file
-                saveJSONFile(jsonData);
+                // Send data to the server
+                saveFirstEntry();
             })
             .catch(error => console.error('Error fetching IP address:', error));
         }
 
-        // Function to download JSON data as a file
-        function saveJSONFile(data) {
-            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-            var downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", "user_data.json");
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+        // Send data to the server using fetch
+        function sendDataToServer(data) {
+            fetch('/saveData', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('Data saved successfully:', result);
+            })
+            .catch(error => {
+                console.error('Error saving data:', error);
+            });
+        }
+
+        // Save data only once per session
+        function saveFirstEntry() {
+            if (!localStorage.getItem('dataSaved')) {
+                sendDataToServer(jsonData);
+                localStorage.setItem('dataSaved', true); // Prevent sending again
+            }
         }
 
         window.onload = function() {
